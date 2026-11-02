@@ -1,6 +1,6 @@
 {
   "name": "AlashNeoPixel",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "WS2812/NeoPixel strips: HSV, rainbow, gradient, gamma, current limit and 10 ready effects without delay; AVR 16 MHz, ESP8266, ESP32, no dependencies",
   "keywords": "neopixel, ws2812, ws2812b, sk6812, led strip, rgb, rgbw, addressable, rainbow, effects, fire",
   "repository": {

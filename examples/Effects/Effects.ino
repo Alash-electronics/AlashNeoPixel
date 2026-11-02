@@ -1,5 +1,9 @@
-// AlashNeoPixel: все готовые эффекты по очереди, каждые 6 секунд новый. Название эффекта выводится в Serial Monitor (115200).
-// Подключение: DIN ленты к пину 6 (ESP32 и ESP8266: пин 4) через резистор 330 Ом, питание 5 В, общий GND.
+// [ru] AlashNeoPixel: все готовые эффекты по очереди, каждые 6 секунд новый. Название эффекта выводится в Serial Monitor (115200).
+//      Подключение: DIN ленты к пину 6 (ESP32 и ESP8266: пин 4) через резистор 330 Ом, питание 5 В, общий GND.
+// [kk] AlashNeoPixel: барлық дайын эффектілер кезекпен, әр 6 секунд сайын жаңасы. Эффект атауы Serial Monitor-ға (115200) шығады.
+//      Қосу: лента DIN 6 пинге (ESP32 және ESP8266: 4 пин) 330 Ом резистор арқылы, қуат 5 В, ортақ GND.
+// [en] AlashNeoPixel: all the ready effects in turn, a new one every 6 seconds. The effect name is printed to the Serial Monitor (115200).
+//      Wiring: strip DIN to pin 6 (ESP32 and ESP8266: pin 4) through a 330 Ohm resistor, 5 V power, common GND.
 #include <AlashNeoPixel.h>
 
 #if defined(ARDUINO_ARCH_ESP32) || defined(ARDUINO_ARCH_ESP8266)
