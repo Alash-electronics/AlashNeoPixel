@@ -233,7 +233,8 @@ void AlashNeoPixel::show() {
 }
 
 #if defined(ALASH_NP_AVR16)
-// AVR 16 МГц: бит = 20 циклов. "0": высокий уровень 5 циклов (312 нс), "1": 11 циклов (688 нс), период 1,19..1,25 мкс (допуск WS2812: ±150 нс).
+// AVR 16 МГц: бит = 20 циклов (1,25 мкс). "0": высокий уровень 5 циклов (312 нс), "1": 13 циклов (812 нс), как рекомендуют
+// даташиты WS2812/WS2812B (T0H 0,4, T1H 0,8, допуск ±150 нс) и как делают проверенные библиотеки.
 bool AlashNeoPixel::driverBegin() { return true; }
 void AlashNeoPixel::driverEnd() {}
 void AlashNeoPixel::driverSend(const uint8_t *data, uint16_t length, uint16_t scale, bool useGamma) {
@@ -247,16 +248,18 @@ void AlashNeoPixel::driverSend(const uint8_t *data, uint16_t length, uint16_t sc
     uint8_t b = xf(*data++, scale, useGamma), n = 8;
     asm volatile(
         "1:\n\t"
-        "st   %a[port], %[hi]\n\t"       // фронт: высокий уровень
-        "nop\n\tnop\n\t"
-        "sbrs %[b], 7\n\t"               // бит 1: пропустить следующую команду
-        "st   %a[port], %[lo]\n\t"       // бит 0: спад через 5 циклов
-        "nop\n\tnop\n\tnop\n\tnop\n\tnop\n\t"
-        "st   %a[port], %[lo]\n\t"       // бит 1: спад через 11 циклов
+        "st   %a[port], %[hi]\n\t"       // T=0: фронт, высокий уровень (запись в конце 2-го цикла)
+        "nop\n\tnop\n\t"               // T=2
+        "sbrs %[b], 7\n\t"               // бит 1: пропустить следующую команду (1 цикл при 0, 2 при 1)
+        "st   %a[port], %[lo]\n\t"       // бит 0: спад, высокий уровень 5 циклов
+        "sbrc %[b], 7\n\t"               // выравнивание: оба пути приходят к T=9
+        "rjmp .+0\n\t"
+        "nop\n\tnop\n\tnop\n\tnop\n\t"
+        "st   %a[port], %[lo]\n\t"       // бит 1: спад, высокий уровень 13 циклов (для бита 0 это повторная запись низкого)
+        "nop\n\t"
         "lsl  %[b]\n\t"
-        "nop\n\tnop\n\t"
         "dec  %[n]\n\t"
-        "brne 1b\n\t"
+        "brne 1b\n\t"                    // T=20 следующий бит
         : [b] "+r"(b), [n] "+r"(n)
         : [port] "e"(port), [hi] "r"(hi), [lo] "r"(lo));
   }
@@ -269,7 +272,7 @@ static inline uint32_t IRAM_ATTR ccount() { uint32_t c; __asm__ __volatile__("rs
 void IRAM_ATTR AlashNeoPixel::driverSend(const uint8_t *data, uint16_t length, uint16_t scale, bool useGamma) {
   const uint32_t mask = 1UL << _pin;
   const uint32_t tpu = F_CPU / 1000000UL;
-  const uint32_t t0h = tpu * 350 / 1000, t1h = tpu * 700 / 1000, period = tpu * 1250 / 1000;
+  const uint32_t t0h = tpu * 400 / 1000, t1h = tpu * 800 / 1000, period = tpu * 1250 / 1000;   // 0,4 / 0,8 / 1,25 мкс
   noInterrupts();
   uint32_t start = ccount();
   while (length--) {
@@ -287,7 +290,7 @@ void IRAM_ATTR AlashNeoPixel::driverSend(const uint8_t *data, uint16_t length, u
   interrupts();
 }
 #elif defined(ALASH_NP_RMT)
-// ESP32 (ядро 3.x): RMT с тиком 100 нс. "0": 400 нс высокий и 900 нс низкий, "1": 800 и 500 нс.
+// ESP32 (ядро 3.x): RMT с тиком 100 нс. Значения те же, что в самом ядре (rgbLedWrite): "0": 400 нс высокий и 800 нс низкий, "1": 800 и 400 нс.
 bool AlashNeoPixel::driverBegin() {
   if (!rmtInit(_pin, RMT_TX_MODE, RMT_MEM_NUM_BLOCKS_1, 10000000)) return false;
   _rmt = malloc((size_t)_n * bpp() * 8 * sizeof(rmt_data_t));
@@ -302,8 +305,8 @@ void AlashNeoPixel::driverSend(const uint8_t *data, uint16_t length, uint16_t sc
     uint8_t b = xf(data[i], scale, useGamma);
     for (uint8_t bit = 0x80; bit; bit >>= 1, k++) {
       sym[k].level0 = 1; sym[k].level1 = 0;
-      if (b & bit) { sym[k].duration0 = 8; sym[k].duration1 = 5; }
-      else         { sym[k].duration0 = 4; sym[k].duration1 = 9; }
+      if (b & bit) { sym[k].duration0 = 8; sym[k].duration1 = 4; }
+      else         { sym[k].duration0 = 4; sym[k].duration1 = 8; }
     }
   }
   if (!rmtWrite(_pin, sym, k, RMT_WAIT_FOR_EVER)) _err = ERR_DRIVER;
